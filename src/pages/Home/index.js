@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ScrollView } from 'react-native';
+import { ScrollView, ActivityIndicator } from 'react-native';
 
 import { 
     Container, 
@@ -19,16 +19,24 @@ import Header from '../../components/Header';
 import SliderItem from '../../components/SliderItem'
 
 import api, { key } from '../../services/api';
-import { getListMovies } from '../../utils/movie';
+import { getListMovies, randomBanner } from '../../utils/movie';
+
+import { useNavigation } from '@react-navigation/native';
 
 function Home(){
 
     const [nowMovies, setNowMovies] = useState([]);
     const [popularMovies, setPopularMovies] = useState([]);
     const [topMovies, setTopMovies] = useState([]);
+    const [bannerMovie, setBannerMovie] = useState({});
+    
+    const [loading, setLoading] = useState([true]);
+
+    const navigation= useNavigation();
 
     useEffect(()=>{
         let isActive = true;
+        const ac = new AbortController();
 
         async function getMovies(){
             // const response = await  api.get('movie/now_playing', {
@@ -62,16 +70,41 @@ function Home(){
                     }
                 }),
             ])
-            const nowList = getListMovies(10, nowData.data.results);
-            const popularList = getListMovies(5, popularData.data.results);
-            const topList = getListMovies(5, topData.data.results);
 
-            setNowMovies(nowList);
-            setPopularMovies(popularList);
-            setTopMovies(topList);
+            if(isActive){
+                const nowList = getListMovies(10, nowData.data.results);
+                const popularList = getListMovies(5, popularData.data.results);
+                const topList = getListMovies(5, topData.data.results);
+
+                setBannerMovie(nowData.data.results[randomBanner(nowData.data.results)]);
+                setNowMovies(nowList);
+                setPopularMovies(popularList);
+                setTopMovies(topList);
+                setLoading(false);
+            }
+            
         }
         getMovies();
+
+        return () => {
+            isActive = false;
+            ac.abort();
+        }
+
+
     }, [])
+
+    function navigateDetailsPages(item){
+        navigation.navigate('Detail', {id: item.id})
+    }
+
+    if(loading){
+        return(
+            <Container>
+                <ActivityIndicator size="large" color="#FFF" />
+            </Container>
+        )
+    }
 
     return(
         <Container>
@@ -88,10 +121,10 @@ function Home(){
 
             <ScrollView showsVerticalScrollIndicator={false}>
                 <Title>Em cartaz</Title>
-                <BunnerButton activeOpacity={0.9} onPress={ () => alert('Teste')}>
+                <BunnerButton activeOpacity={0.9} onPress={ () => navigateDetailsPages(bannerMovie) }>
                     <Banner
                         resizeMethod="resize"
-                        source={{ uri: 'https://images.unsplash.com/photo-1602461601079-fb03b7b35e61?ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&ixlib=rb-1.2.1&auto=format&fit=crop&w=1170&q=80'}}
+                        source={{ uri: `https://image.tmdb.org/t/p/original/${bannerMovie.poster_path}` }}
                     />
                 </BunnerButton>
 
@@ -99,7 +132,7 @@ function Home(){
                     horizontal={true}
                     showsHorizontalScrollIndicator={false}
                     data={nowMovies}
-                    renderItem={ ({ item }) => <SliderItem data={item}/> }
+                    renderItem={ ({ item }) => <SliderItem data={item} navigatePage={ () => navigateDetailsPages(item) } /> }
                     keyExtractor={(item) => String(item.id)}
                 />
 
@@ -108,7 +141,7 @@ function Home(){
                     horizontal={true}
                     showsHorizontalScrollIndicator={false}
                     data={popularMovies}
-                    renderItem={ ({ item }) => <SliderItem data={item}/> }
+                    renderItem={ ({ item }) => <SliderItem data={item} navigatePage={ () => navigateDetailsPages(item) } /> }
                     keyExtractor={(item) => String(item.id)}
                 />
 
@@ -117,7 +150,7 @@ function Home(){
                     horizontal={true}
                     showsHorizontalScrollIndicator={false}
                     data={topMovies}
-                    renderItem={ ({ item }) => <SliderItem data={item}/> }
+                    renderItem={ ({ item }) => <SliderItem data={item} navigatePage={ () => navigateDetailsPages(item) } /> }
                     keyExtractor={(item) => String(item.id)}
                 />
             </ScrollView>
